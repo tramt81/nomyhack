@@ -1,0 +1,129 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local enabled = true
+local FOV = 150
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+local toggle = Instance.new("TextButton", ScreenGui)
+toggle.Size = UDim2.new(0,150,0,40)
+toggle.Position = UDim2.new(0,20,0,20)
+toggle.Text = "ON"
+toggle.BackgroundColor3 = Color3.fromRGB(0,170,0)
+
+local credit = Instance.new("TextLabel", ScreenGui)
+credit.Size = UDim2.new(0,200,0,30)
+credit.Position = UDim2.new(0,20,0,65)
+credit.Text = "By sttam"
+credit.BackgroundTransparency = 1
+credit.TextColor3 = Color3.new(1,1,1)
+
+toggle.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	toggle.Text = enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = enabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+end)
+
+-- FOV Circle
+local circle = Drawing.new("Circle")
+circle.Radius = FOV
+circle.Thickness = 2
+circle.Filled = false
+circle.Visible = true
+
+game:GetService("RunService").RenderStepped:Connect(function()
+	circle.Position = UIS:GetMouseLocation()
+	circle.Visible = enabled
+end)
+
+-- ESP
+local function createESP(player)
+	player.CharacterAdded:Connect(function(char)
+		local head = char:WaitForChild("Head")
+		local gui = Instance.new("BillboardGui", head)
+		gui.Size = UDim2.new(0,200,0,50)
+		gui.AlwaysOnTop = true
+		local text = Instance.new("TextLabel", gui)
+		text.Size = UDim2.new(1,0,1,0)
+		text.BackgroundTransparency = 1
+		text.TextScaled = true
+		while char.Parent do
+			if not enabled then
+				text.Text = ""
+				wait(0.3)
+				continue
+			end
+			local hum = char:FindFirstChild("Humanoid")
+			if hum then
+				local hp = (hum.Health / hum.MaxHealth) * 100
+				local color
+				
+				if hp > 70 then
+					color = Color3.fromRGB(0,255,0)
+				elseif hp > 30 then
+					color = Color3.fromRGB(255,255,0)
+				else
+					color = Color3.fromRGB(255,0,0)
+				end
+				text.TextColor3 = color
+				text.Text = "❤️ "..math.floor(hp)
+			end
+			local tool = char:FindFirstChildOfClass("Tool")
+			if tool then
+				text.Text = text.Text .. "\n🧰 "..tool.Name
+			end
+			wait(0.3)
+		end
+	end)
+end
+
+for _, p in pairs(Players:GetPlayers()) do
+	if p ~= LocalPlayer then
+		createESP(p)
+	end
+end
+
+-- Target Part (حتى بالسيارة)
+local function getPart(char)
+	return char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart
+end
+
+-- أقرب لاعب داخل FOV
+local function getClosest()
+	local closest = nil
+	local dist = FOV
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and p.Character then
+			local part = getPart(p.Character)
+			if part then
+				local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
+				if onscreen then
+					local diff = (Vector2.new(pos.X, pos.Y) - UIS:GetMouseLocation()).Magnitude
+					if diff < dist then
+						dist = diff
+						closest = p
+					end
+				end
+			end
+		end
+	end
+	return closest
+end
+
+-- Q = Aim Assist
+UIS.InputBegan:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.Q and enabled then
+		local target = getClosest()
+		if target and target.Character then
+			local part = getPart(target.Character)
+			if part then
+				Camera.CFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+				print("By sttam - PRO Assist 🔥")
+			end
+		end
+	end
+end)
